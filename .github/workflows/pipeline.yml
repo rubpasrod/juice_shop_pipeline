@@ -39,6 +39,9 @@ jobs:
       - name: 🔧 Install Angular CLI
         run: npm install -g @angular/cli
 
+      - name: 🔄 Uninstall Lodash types
+        run: npm uninstall @types/lodash
+
       - name: 🔄 Install TypeScript
         run: npm install typescript@latest -D
 
