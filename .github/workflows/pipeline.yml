@@ -39,11 +39,11 @@ jobs:
       - name: 🔧 Install Angular CLI
         run: npm install -g @angular/cli
 
-      - name: 🔄 Install specific TypeScript version
-        run: npm install typescript@5.1.6 -D
+      - name: 🔄 Install TypeScript
+        run: npm install typescript@latest -D
 
       - name: 🔧 Update Lodash types
-        run: npm install @types/lodash@4.14.191 --legacy-peer-deps -D
+        run: npm install @types/lodash@latest --legacy-peer-deps -D
 
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
