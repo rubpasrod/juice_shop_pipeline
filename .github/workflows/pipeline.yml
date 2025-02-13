@@ -36,17 +36,23 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install
 
-      - name: 🔧 Install Angular CLI
-        run: npm install -g @angular/cli
-
-      - name: 🔄 Uninstall Lodash types
-        run: npm uninstall @types/lodash
-
-      - name: 🔄 Install TypeScript
-        run: npm install typescript@latest -D
-
-      - name: 🔧 Update Lodash types
-        run: npm install @types/lodash@latest --legacy-peer-deps -D
-
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
+
+  sast:
+    name: SAST stage - Semgrep
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - name: Checkout
+      - uses: actions/checkout@v4
+
+      - name: Semgrep
+        run: |
+          docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep --config=p/ci --json -o semgrep-results.json
+      - name: Critical vuln 
+      - run: |
+           if grep -q '"severity": "ERROR"' semgrep-results.json; then
+            echo "Critical vulnerabilities found by Semgrep!"
+            exit 1
+           fi
