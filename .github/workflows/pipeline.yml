@@ -72,12 +72,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create Report Directory
+        run: mkdir -p ./dependency-check-report
+
       - name: Run OWASP Dependency-Check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}  # Usar la clave API desde GitHub Secrets
         run: |
-          mkdir -p ./dependency-check-report
           docker run --rm -v $(pwd):/src owasp/dependency-check:latest \
           --project "Juice Shop" --scan /src --format "ALL" --out /src/dependency-check-report
-      - name: Check for Critical Vulnerabilities
+
+     - name: Check for Critical Vulnerabilities
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
             echo "Critical vulnerabilities found by OWASP Dependency-Check!"
