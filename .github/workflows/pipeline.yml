@@ -63,7 +63,7 @@ jobs:
             echo "Critical vulnerabilities found by Semgrep!"
             exit 1
            fi
- 
+
   sca:
     name: SCA Stage (OWASP Dependency-Check)
     runs-on: ubuntu-24.04
@@ -75,10 +75,10 @@ jobs:
       - name: Run OWASP Dependency-Check
         run: |
           docker run --rm -v $(pwd):/src owasp/dependency-check:latest \
-          --project "Juice Shop" --scan /src --format "ALL" --out /src/dependency-check-report
+          --project "Juice Shop" --scan /src --format "ALL" --out ./dependency-check-report
       - name: Check for Critical Vulnerabilities
         run: |
-          if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
+          if grep -q '"severity": "CRITICAL"' ./dependency-check-report/dependency-check-report.json; then
             echo "Critical vulnerabilities found by OWASP Dependency-Check!"
             exit 1
           fi
