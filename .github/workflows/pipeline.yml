@@ -39,6 +39,9 @@ jobs:
       - name: 🔧 Install Angular CLI
         run: npm install -g @angular/cli
 
+      - name: 🔧 Install angular-highlight-js
+        run: npm install angular-highlight-js --save
+
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
 
