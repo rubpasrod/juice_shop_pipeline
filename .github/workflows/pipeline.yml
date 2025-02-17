@@ -1,15 +1,14 @@
 name: Juice Shop Pipeline
 
 on:
-   push:
-     branches:
-       - main
-   pull_request:
-     branches:
-       - main
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-
   build:
     name: Build image
     runs-on: ubuntu-24.04
@@ -45,8 +44,8 @@ jobs:
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
 
-  security:
-    name: Security Analysis
+  security_sast:
+    name: SAST (Semgrep)
     runs-on: ubuntu-24.04
     needs: test
     steps:
@@ -64,12 +63,20 @@ jobs:
             exit 1
           fi
 
+  security_sca:
+    name: SCA (OWASP Dependency-Check)
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Create Report Directory for SCA
         run: mkdir -p ./dependency-check-report
 
       - name: Run OWASP Dependency-Check (SCA)
         env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}  # Ensure the API key is set in GitHub secrets
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           docker run --rm -v $(pwd):/src \
           -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
@@ -80,7 +87,6 @@ jobs:
           --out /src/dependency-check-report \
           --nvdApiKey "${{ secrets.NVD_API_KEY }}"
 
-
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
@@ -88,12 +94,28 @@ jobs:
             exit 1
           fi
 
-      - name: DAST Stage (OWASP ZAP)
+  security_dast:
+    name: DAST (OWASP ZAP)
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run OWASP ZAP Scan (DAST)
         run: |
           docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py \
           -t http://localhost:3000 -g gen.conf -r zap-report.html
 
-      - name: Secrets Scan (TruffleHog)
+  security_secrets:
+    name: Secrets Scan (TruffleHog)
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run TruffleHog Scan
         run: |
           docker run --rm -v $(pwd):/src trufflesecurity/trufflehog:latest \
           git file:///src --json > trufflehog-results.json
