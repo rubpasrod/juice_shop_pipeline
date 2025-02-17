@@ -1,48 +1,38 @@
 name: Juice Shop Pipeline
 
 on:
-   push:
-     branches:
-       - main
-   pull_request:
-     branches:
-       - main
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  check_changes:
-    name: Check for Changes
+
+  check-changes:
+    name: Check for relevant changes
     runs-on: ubuntu-24.04
     outputs:
       build: ${{ steps.changes.outputs.build }}
-      test: ${{ steps.changes.outputs.test }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Detect Changes
+      - name: Check for relevant changes
         id: changes
         run: |
-          BUILD_NEEDED=false
-          TEST_NEEDED=false
-          
           if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E 'Dockerfile|src/*'; then
-            BUILD_NEEDED=true
+            echo "build=true" >> $GITHUB_OUTPUT
+          else
+            echo "build=false" >> $GITHUB_OUTPUT
           fi
-          
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E 'src/*|package.json|package-lock.json|karma.conf.js'; then
-            TEST_NEEDED=true
-          fi
-          
-          echo "build=$BUILD_NEEDED" >> $GITHUB_ENV
-          echo "test=$TEST_NEEDED" >> $GITHUB_ENV
-          echo "::set-output name=build::$BUILD_NEEDED"
-          echo "::set-output name=test::$TEST_NEEDED"
 
   build:
-    name: Build Image
+    name: Build image
     runs-on: ubuntu-24.04
-    needs: check_changes
-    if: ${{ needs.check_changes.outputs.build == 'true' }}
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.build == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,8 +51,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-24.04
-    needs: [check_changes, build]
-    if: ${{ needs.check_changes.outputs.test == 'true' }}
+    needs: build
+    if: ${{ needs.check-changes.outputs.build == 'true' }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -85,14 +75,19 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
+      - name: 🔧 Install Angular CLI
+        run: npm install -g @angular/cli
+
+      - name: 🔧 Install angular-highlight-js
+        run: npm install angular-highlight-js --save
+
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
 
   security:
     name: Security Analysis
     runs-on: ubuntu-24.04
-    needs: [check_changes, test]
-    if: ${{ needs.check_changes.outputs.test == 'true' || needs.check_changes.outputs.build == 'true' }}
+    needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
