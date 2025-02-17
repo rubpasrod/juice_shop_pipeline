@@ -55,7 +55,6 @@ jobs:
       - name: Run Semgrep (SAST)
         run: |
           docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep --config=p/ci --json -o semgrep-results.json
-
       - name: Check for Critical Vulnerabilities (Semgrep)
         run: |
           if grep -q '"severity": "ERROR"' semgrep-results.json; then
@@ -86,7 +85,6 @@ jobs:
           --format "ALL" \
           --out /src/dependency-check-report \
           --nvdApiKey "${{ secrets.NVD_API_KEY }}"
-
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
@@ -102,10 +100,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: 📦 Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: 🔧 Start Juice Shop
+        run: |
+          nohup npm start &  # Inicia el servidor en segundo plano
+          sleep 10           # Espera 10 segundos para asegurarse de que el servidor esté corriendo
+
       - name: Run OWASP ZAP Scan (DAST)
         run: |
-          docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py \
-          -t http://localhost:3000 -g gen.conf -r zap-report.html
+          docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker zap-baseline.py -t http://localhost:3000 -g gen.conf -r zap-report.html
 
   security_secrets:
     name: Secrets Scan (TruffleHog)
@@ -119,7 +124,6 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src trufflesecurity/trufflehog:latest \
           git file:///src --json > trufflehog-results.json
-
       - name: Check for Secrets
         run: |
           if grep -q '"reason":' trufflehog-results.json; then
