@@ -69,11 +69,16 @@ jobs:
 
       - name: Run OWASP Dependency-Check (SCA)
         env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}  # Ensure API key is set in GitHub secrets
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}  # Ensure the API key is set in GitHub secrets
         run: |
-          docker run --rm -v $(pwd):/src -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+          docker run --rm -v $(pwd):/src \
+          -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
           owasp/dependency-check:latest \
-          --project "Juice Shop" --scan /src --format "ALL" --out /src/dependency-check-report
+          --project "Juice Shop" \
+          --scan /src \
+          --format "ALL" \
+          --out /src/dependency-check-report \
+          --nvdApiKey "${{ secrets.NVD_API_KEY }}"
 
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
