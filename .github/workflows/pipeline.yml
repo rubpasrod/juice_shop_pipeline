@@ -1,79 +1,40 @@
 name: Juice Shop Pipeline
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+   push:
+     branches:
+       - main
+   pull_request:
+     branches:
+       - main
 
 jobs:
-
-  check-changes:
-    name: Check for relevant changes
-    runs-on: ubuntu-24.04
-    outputs:
-      build: ${{ steps.changes.outputs.build }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check for relevant changes
-        id: changes
-        run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E 'Dockerfile|src/*'; then
-            echo "build=true" >> $GITHUB_OUTPUT
-          else
-            echo "build=false" >> $GITHUB_OUTPUT
-          fi
 
   build:
     name: Build image
     runs-on: ubuntu-24.04
-    needs: check-changes
-    if: ${{ needs.check-changes.outputs.build == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-docker-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-docker-
-
       - name: Build Image
-        run: docker build -t juice-shop --cache-from=type=local,src=/tmp/.buildx-cache --cache-to=type=local,dest=/tmp/.buildx-cache .
+        run: docker build -t juice-shop .
 
   test:
     name: Test
     runs-on: ubuntu-24.04
     needs: build
-    if: ${{ needs.check-changes.outputs.build == 'true' }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-
-      - name: Cache Node.js modules
-        id: node-cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
 
       - name: 🔧 Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
 
       - name: 📦 Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: 🔧 Install Angular CLI
         run: npm install -g @angular/cli
