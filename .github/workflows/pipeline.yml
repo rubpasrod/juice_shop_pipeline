@@ -110,7 +110,7 @@ jobs:
 
       - name: Run OWASP ZAP Scan (DAST)
         run: |
-          docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py -t http://localhost:3000 -g gen.conf -r zap-report.html
+          docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-weekly zap-baseline.py -t http://localhost:3000 -g gen.conf -r zap-report.html
 
   security_secrets:
     name: Secrets Scan (TruffleHog)
