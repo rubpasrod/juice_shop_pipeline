@@ -80,6 +80,7 @@ jobs:
           --out /src/dependency-check-report \
           --nvdApiKey "${{ secrets.NVD_API_KEY }}"
 
+
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
