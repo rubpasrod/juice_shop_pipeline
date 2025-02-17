@@ -86,3 +86,30 @@ jobs:
             echo "Critical vulnerabilities found by OWASP Dependency-Check!"
             exit 1
           fi
+
+      # DAST (OWASP ZAP) Stage
+      - name: DAST Stage (OWASP ZAP)
+        runs-on: ubuntu-24.04
+        needs: security
+        steps:
+          - name: OWASP ZAP Scan
+            run: |
+              docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-stable zap-baseline.py \
+              -t http://localhost:3000 -g gen.conf -r zap-report.html
+
+      # Secrets Scan (TruffleHog)
+      - name: Secrets Scan (TruffleHog)
+        runs-on: ubuntu-24.04
+        needs: security
+        steps:
+          - name: TruffleHog Scan
+            run: |
+              docker run --rm -v $(pwd):/src trufflesecurity/trufflehog:latest \
+              git file:///src --json > trufflehog-results.json
+
+          - name: Check for Secrets
+            run: |
+              if grep -q '"reason":' trufflehog-results.json; then
+                echo "Secrets found by TruffleHog!"
+                exit 1
+              fi
