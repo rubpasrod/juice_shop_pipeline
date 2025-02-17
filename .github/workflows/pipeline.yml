@@ -13,9 +13,17 @@ jobs:
   build:
     name: Build image
     runs-on: ubuntu-24.04
+    if: ${{ github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip ci]') && steps.changes.outputs.build == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Check for relevant changes
+        id: changes
+        run: |
+          if git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E 'Dockerfile|src/*'; then
+            echo "build=true" >> $GITHUB_ENV
+          fi
 
       - name: Build Image
         run: docker build -t juice-shop .
@@ -24,6 +32,7 @@ jobs:
     name: Test
     runs-on: ubuntu-24.04
     needs: build
+    if: ${{ env.build == 'true' }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -45,46 +54,39 @@ jobs:
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
 
-  sast:
-    name: SAST stage - Semgrep
+  security:
+    name: Security Analysis
     runs-on: ubuntu-24.04
     needs: test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Semgrep
+      - name: Run Semgrep (SAST)
         run: |
           docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep --config=p/ci --json -o semgrep-results.json
 
-      - name: Critical vuln
+      - name: Check for Critical Vulnerabilities (Semgrep)
         run: |
-           if grep -q '"severity": "ERROR"' semgrep-results.json; then
+          if grep -q '"severity": "ERROR"' semgrep-results.json; then
             echo "Critical vulnerabilities found by Semgrep!"
             exit 1
-           fi
+          fi
 
-  sca:
-    name: SCA Stage (OWASP Dependency-Check)
-    runs-on: ubuntu-24.04
-    needs: test
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create Report Directory
+      - name: Create Report Directory for SCA
         run: mkdir -p ./dependency-check-report
 
-      - name: Run OWASP Dependency-Check
+      - name: Run OWASP Dependency-Check (SCA)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           docker run --rm -v $(pwd):/src owasp/dependency-check:latest \
           --project "Juice Shop" --scan /src --format "ALL" --out /src/dependency-check-report
 
-      - name: Check for Critical Vulnerabilities
+      - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
             echo "Critical vulnerabilities found by OWASP Dependency-Check!"
             exit 1
           fi
+
