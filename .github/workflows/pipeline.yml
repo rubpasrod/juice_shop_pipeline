@@ -111,7 +111,7 @@ jobs:
       - name: Run OWASP ZAP Scan (DAST)
         run: |
           docker ps
-          docker pull zaproxy/zap:latest
+          docker pull zaproxy/zap-weekly
           docker run --rm -v $(pwd):/zap/wrk/:rw --network="host" -t zaproxy/zap-weekly zap-baseline.py -t http://localhost:3000 -g gen.conf -r zap-report.html
 
   security_secrets:
