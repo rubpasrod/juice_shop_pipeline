@@ -63,46 +63,46 @@ jobs:
           fi
 
   sca:
-  name: SCA Stage (OWASP Dependency-Check)
-  runs-on: ubuntu-24.04
-  needs: test
-  steps:
-    # Paso 1: Checkout del código fuente
-    - name: Checkout code
-      uses: actions/checkout@v4
+    name: SCA Stage (OWASP Dependency-Check)
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      # Paso 1: Checkout del código fuente
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # Paso 2: Instalar dependencias de Node.js (si es necesario)
-    - name: Install Node.js dependencies
-      run: |
-        npm install --package-lock
+      # Paso 2: Instalar dependencias de Node.js (si es necesario)
+      - name: Install Node.js dependencies
+        run: |
+          npm install --package-lock
 
-    # Paso 3: Cache de la base de datos de OWASP Dependency-Check
-    - name: Cache Dependency-Check database
-      uses: actions/cache@v3
-      with:
-        path: /tmp/dependency-check-cache
-        key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
+      # Paso 3: Cache de la base de datos de OWASP Dependency-Check
+      - name: Cache Dependency-Check database
+        uses: actions/cache@v3
+        with:
+          path: /tmp/dependency-check-cache
+          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
 
-    # Paso 4: Ejecutar OWASP Dependency-Check
-    - name: Run OWASP Dependency-Check
-      run: |
-        mkdir -p ./dependency-check-report
-        docker run --rm \
-          -v $(pwd):/src \
-          -v /tmp/dependency-check-cache:/root/.m2/repository \
-          owasp/dependency-check:latest \
-          --project "Juice Shop" \
-          --scan /src \
-          --out /src/dependency-check-report \
-          --exclude /src/test/files/passwordProtected.zip \
-          --exclude /src/test/files/arbitraryFileWrite.zip
+      # Paso 4: Ejecutar OWASP Dependency-Check
+      - name: Run OWASP Dependency-Check
+        run: |
+          mkdir -p ./dependency-check-report
+          docker run --rm \
+            -v $(pwd):/src \
+            -v /tmp/dependency-check-cache:/root/.m2/repository \
+            owasp/dependency-check:latest \
+            --project "Juice Shop" \
+            --scan /src \
+            --out /src/dependency-check-report \
+            --exclude /src/test/files/passwordProtected.zip \
+            --exclude /src/test/files/arbitraryFileWrite.zip
 
-    # Paso 5: (Opcional) Subir el reporte generado a algún lugar, si es necesario
-    - name: Upload Dependency-Check report
-      uses: actions/upload-artifact@v3
-      with:
-        name: dependency-check-report
-        path: ./dependency-check-report
+      # Paso 5: (Opcional) Subir el reporte generado a algún lugar, si es necesario
+      - name: Upload Dependency-Check report
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-check-report
+          path: ./dependency-check-report
 
 
   security_dast:
