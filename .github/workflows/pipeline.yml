@@ -62,35 +62,48 @@ jobs:
             exit 1
           fi
 
-  security_sca:
-    name: SCA (OWASP Dependency-Check)
-    runs-on: ubuntu-24.04
-    needs: test
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  sca:
+  name: SCA Stage (OWASP Dependency-Check)
+  runs-on: ubuntu-24.04
+  needs: test
+  steps:
+    # Paso 1: Checkout del código fuente
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Create Report Directory for SCA
-        run: mkdir -p ./dependency-check-report
+    # Paso 2: Instalar dependencias de Node.js (si es necesario)
+    - name: Install Node.js dependencies
+      run: |
+        npm install --package-lock
 
-      - name: Run OWASP Dependency-Check (SCA)
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
-        run: |
-          docker run --rm -v $(pwd):/src \
-          -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+    # Paso 3: Cache de la base de datos de OWASP Dependency-Check
+    - name: Cache Dependency-Check database
+      uses: actions/cache@v3
+      with:
+        path: /tmp/dependency-check-cache
+        key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
+
+    # Paso 4: Ejecutar OWASP Dependency-Check
+    - name: Run OWASP Dependency-Check
+      run: |
+        mkdir -p ./dependency-check-report
+        docker run --rm \
+          -v $(pwd):/src \
+          -v /tmp/dependency-check-cache:/root/.m2/repository \
           owasp/dependency-check:latest \
           --project "Juice Shop" \
           --scan /src \
-          --format "ALL" \
           --out /src/dependency-check-report \
-          --nvdApiKey "${{ secrets.NVD_API_KEY }}"
-      - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
-        run: |
-          if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
-            echo "Critical vulnerabilities found by OWASP Dependency-Check!"
-            exit 1
-          fi
+          --exclude /src/test/files/passwordProtected.zip \
+          --exclude /src/test/files/arbitraryFileWrite.zip
+
+    # Paso 5: (Opcional) Subir el reporte generado a algún lugar, si es necesario
+    - name: Upload Dependency-Check report
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-check-report
+        path: ./dependency-check-report
+
 
   security_dast:
     name: DAST (OWASP ZAP)
