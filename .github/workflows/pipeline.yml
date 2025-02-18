@@ -99,7 +99,7 @@ jobs:
 
       # Paso 5: (Opcional) Subir el reporte generado a algún lugar, si es necesario
       - name: Upload Dependency-Check report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
           path: ./dependency-check-report
