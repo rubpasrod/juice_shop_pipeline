@@ -106,7 +106,7 @@ jobs:
       - name: 🔧 Start Juice Shop
         run: |
           nohup npm start &  # Start the server in the background
-          sleep 10           # Wait 10 seconds to ensure the server is running
+          sleep 60           # Wait 10 seconds to ensure the server is running
 
       - name: Run OWASP ZAP Scan (DAST)
         run: |
