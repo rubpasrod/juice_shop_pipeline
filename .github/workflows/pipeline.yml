@@ -106,12 +106,13 @@ jobs:
       - name: 🔧 Start Juice Shop
         run: |
           nohup npm start &  # Start the server in the background
-          sleep 60           # Wait 10 seconds to ensure the server is running
+          sleep 20           # Increased wait time to ensure the server is running
 
       - name: Run OWASP ZAP Scan (DAST)
         run: |
           docker ps
-          docker run --rm -v $(pwd):/zap/wrk/:rw -t owasp/zap2docker-weekly zap-baseline.py -t http://localhost:3000 -g gen.conf -r zap-report.html
+          docker pull zaproxy/zap:latest
+          docker run --rm -v $(pwd):/zap/wrk/:rw --network="host" -t zaproxy/zap:latest zap-baseline.py -t http://localhost:3000 -g gen.conf -r zap-report.html
 
   security_secrets:
     name: Secrets Scan (TruffleHog)
