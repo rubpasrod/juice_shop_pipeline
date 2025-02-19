@@ -16,8 +16,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache Docker Image
+        uses: actions/cache@v3
+        with:
+          path: /tmp/juice-shop-image
+          key: juice-shop-image-${{ github.sha }}
+
       - name: Build Image
-        run: docker build -t juice-shop .
+        run: |
+          docker build -t juice-shop .
+          mkdir -p /tmp/juice-shop-image
+          docker save juice-shop > /tmp/juice-shop-image/juice-shop.tar
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: juice-shop-image
+          path: /tmp/juice-shop-image/
 
   test:
     name: Test
@@ -26,6 +41,21 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
+
+      - name: Restore Docker Image
+        uses: actions/cache@v3
+        with:
+          path: /tmp/juice-shop-image
+          key: juice-shop-image-${{ github.sha }}
+
+      - name: Load Docker Image
+        run: docker load < /tmp/juice-shop-image/juice-shop.tar
+
+      - name: Cache Node Modules
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package-lock.json') }}
 
       - name: 🔧 Set up Node.js
         uses: actions/setup-node@v4
@@ -125,6 +155,7 @@ jobs:
 
       - name: Run OWASP ZAP Scan (DAST)
         run: |
+          docker ps
           docker pull zaproxy/zap-weekly
           docker run --rm -v $(pwd):/zap/wrk/:rw --user root --network="host" -t zaproxy/zap-weekly \
           zap-baseline.py -t http://localhost:3000 -g /zap/wrk/gen.conf -r zap-report.html -I
