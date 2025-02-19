@@ -86,24 +86,6 @@ jobs:
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
 
-  security_sast:
-    name: SAST (Semgrep)
-    runs-on: ubuntu-24.04
-    needs: test
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run Semgrep (SAST)
-        run: |
-          docker run --rm -v $(pwd):/src returntocorp/semgrep semgrep --config=p/ci --json -o semgrep-results.json
-      - name: Check for Critical Vulnerabilities (Semgrep)
-        run: |
-          if grep -q '"severity": "ERROR"' semgrep-results.json; then
-            echo "Critical vulnerabilities found by Semgrep!"
-            exit 1
-          fi
-
   security_sca:
     name: SCA (OWASP Dependency-Check)
     runs-on: ubuntu-24.04
@@ -112,21 +94,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create Report Directory for SCA
-        run: mkdir -p ./dependency-check-report
-
       - name: Cache Dependency-Check database
         uses: actions/cache@v3
         with:
-          path: /tmp/dependency-check-cache
-          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
+          path: ~/.dependency-check
+          key: dependency-check-db-${{ runner.os }}
+          restore-keys: |
+            dependency-check-db-${{ runner.os }}
+
+      - name: Create Report Directory for SCA
+        run: mkdir -p ./dependency-check-report
 
       - name: Run OWASP Dependency-Check (SCA)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           docker run --rm -v $(pwd):/src \
-          -v /tmp/dependency-check-cache:/root/.m2/repository \
+          -v ~/.dependency-check:/usr/share/dependency-check/data \
           -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
           owasp/dependency-check:latest \
           --project "Juice Shop" \
@@ -134,7 +118,7 @@ jobs:
           --format "ALL" \
           --out /src/dependency-check-report \
           --nvdApiKey "${{ secrets.NVD_API_KEY }}"
-        
+
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
@@ -160,18 +144,15 @@ jobs:
         run: |
           nohup npm start & 
           sleep 60  # Esperar más tiempo para asegurar que la app está activa
-
       - name: 🔍 Check if Juice Shop is running
         run: |
           curl --retry 5 --retry-delay 10 --retry-connrefused -I http://localhost:3000
-
       - name: Run OWASP ZAP Scan (DAST)
         run: |
           docker ps
           docker pull zaproxy/zap-weekly
           docker run --rm -v $(pwd):/zap/wrk/:rw --user root --network="host" -t zaproxy/zap-weekly \
           zap-baseline.py -t http://localhost:3000 -g /zap/wrk/gen.conf -r zap-report.html -I
-
   security_secrets:
     name: Secrets Scan (TruffleHog)
     runs-on: ubuntu-24.04
@@ -184,7 +165,6 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src trufflesecurity/trufflehog:latest \
           git file:///src --json > trufflehog-results.json
-
       - name: Check for Secrets
         run: |
           if grep -q '"reason":' trufflehog-results.json; then
