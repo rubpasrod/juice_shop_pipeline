@@ -112,10 +112,11 @@ jobs:
         run: mkdir -p ./dependency-check-report
 
       - name: Cache Dependency-Check database
+        id: cache-dependency-check
         uses: actions/cache@v3
         with:
           path: /tmp/dependency-check-cache
-          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
           restore-keys: |
             dependency-check-db-${{ runner.os }}-
 
@@ -123,16 +124,32 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
+          # Verificar si el caché se restauró correctamente
+          if [ "${{ steps.cache-dependency-check.outputs.cache-hit }}" != "true" ]; then
+            echo "Cache not found. Downloading Dependency-Check database..."
+            docker run --rm -v $(pwd):/src \
+              -v /tmp/dependency-check-cache:/root/.dependency-check/data \
+              -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+              owasp/dependency-check:latest \
+              --project "Juice Shop" \
+              --scan /src \
+              --format "ALL" \
+              --out /src/dependency-check-report \
+              --nvdApiKey "${{ secrets.NVD_API_KEY }}" \
+              --updateOnly
+          else
+            echo "Cache found. Skipping database download."
+          fi
+
+          # Ejecutar Dependency-Check sin actualizar la base de datos
           docker run --rm -v $(pwd):/src \
-          -v /tmp/dependency-check-cache:/root/.dependency-check/data \
-          -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
-          owasp/dependency-check:latest \
-          --project "Juice Shop" \
-          --scan /src \
-          --format "ALL" \
-          --out /src/dependency-check-report \
-          --nvdApiKey "${{ secrets.NVD_API_KEY }}" \
-          --updateOnly
+            -v /tmp/dependency-check-cache:/root/.dependency-check/data \
+            -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+            owasp/dependency-check:latest \
+            --project "Juice Shop" \
+            --scan /src \
+            --format "ALL" \
+            --out /src/dependency-check-report
 
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
