@@ -86,6 +86,7 @@ jobs:
       - name: 🚀 Run Unit & Integration Tests
         run: npm test
 
+
   security_sca:
     name: SCA (OWASP Dependency-Check)
     runs-on: ubuntu-24.04
@@ -94,23 +95,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create Report Directory for SCA
+        run: mkdir -p ./dependency-check-report
+
       - name: Cache Dependency-Check database
         uses: actions/cache@v3
         with:
-          path: ~/.dependency-check
-          key: dependency-check-db-${{ runner.os }}
-          restore-keys: |
-            dependency-check-db-${{ runner.os }}
+          path: /tmp/dependency-check-cache
+          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
 
-      - name: Create Report Directory for SCA
-        run: mkdir -p ./dependency-check-report
+      - name: Debug Dependency-Check Cache
+        run: ls -lah /tmp/dependency-check-cache || echo "Cache directory not found"
 
       - name: Run OWASP Dependency-Check (SCA)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           docker run --rm -v $(pwd):/src \
-          -v ~/.dependency-check:/usr/share/dependency-check/data \
+          -v /tmp/dependency-check-cache:/root/.m2/repository \
           -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
           owasp/dependency-check:latest \
           --project "Juice Shop" \
