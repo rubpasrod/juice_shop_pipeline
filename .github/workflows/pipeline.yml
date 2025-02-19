@@ -107,21 +107,24 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/dependency-check-cache
-          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
+          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            dependency-check-db-${{ runner.os }}-
 
       - name: Run OWASP Dependency-Check (SCA)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           docker run --rm -v $(pwd):/src \
-          -v /tmp/dependency-check-cache:/root/.m2/repository \
+          -v /tmp/dependency-check-cache:/root/.dependency-check/data \
           -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
           owasp/dependency-check:latest \
           --project "Juice Shop" \
           --scan /src \
           --format "ALL" \
           --out /src/dependency-check-report \
-          --nvdApiKey "${{ secrets.NVD_API_KEY }}"
+          --nvdApiKey "${{ secrets.NVD_API_KEY }}" \
+          --updateOnly
 
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
