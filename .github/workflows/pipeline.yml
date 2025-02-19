@@ -16,6 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Debug Cache Key
+        run: |
+          echo "Cache key: juice-shop-image-${{ runner.os }}-${{ hashFiles('Dockerfile', 'package-lock.json') }}"
+
       - name: Restore Cached Docker Image
         id: cache-docker
         uses: actions/cache@v3
@@ -112,45 +116,25 @@ jobs:
         run: mkdir -p ./dependency-check-report
 
       - name: Cache Dependency-Check database
-        id: cache-dependency-check
         uses: actions/cache@v3
         with:
           path: /tmp/dependency-check-cache
           key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
-          restore-keys: |
-            dependency-check-db-${{ runner.os }}-
 
       - name: Run OWASP Dependency-Check (SCA)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          # Verificar si el caché se restauró correctamente
-          if [ "${{ steps.cache-dependency-check.outputs.cache-hit }}" != "true" ]; then
-            echo "Cache not found. Downloading Dependency-Check database..."
-            docker run --rm -v $(pwd):/src \
-              -v /tmp/dependency-check-cache:/root/.dependency-check/data \
-              -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
-              owasp/dependency-check:latest \
-              --project "Juice Shop" \
-              --scan /src \
-              --format "ALL" \
-              --out /src/dependency-check-report \
-              --nvdApiKey "${{ secrets.NVD_API_KEY }}" \
-              --updateOnly
-          else
-            echo "Cache found. Skipping database download."
-          fi
-
-          # Ejecutar Dependency-Check sin actualizar la base de datos
           docker run --rm -v $(pwd):/src \
-            -v /tmp/dependency-check-cache:/root/.dependency-check/data \
-            -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
-            owasp/dependency-check:latest \
-            --project "Juice Shop" \
-            --scan /src \
-            --format "ALL" \
-            --out /src/dependency-check-report
-
+          -v /tmp/dependency-check-cache:/root/.m2/repository \
+          -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+          owasp/dependency-check:latest \
+          --project "Juice Shop" \
+          --scan /src \
+          --format "ALL" \
+          --out /src/dependency-check-report \
+          --nvdApiKey "${{ secrets.NVD_API_KEY }}"
+        
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
         run: |
           if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
@@ -174,7 +158,7 @@ jobs:
 
       - name: 🔧 Start Juice Shop
         run: |
-          nohup npm start &
+          nohup npm start & 
           sleep 60  # Esperar más tiempo para asegurar que la app está activa
 
       - name: 🔍 Check if Juice Shop is running
@@ -200,6 +184,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src trufflesecurity/trufflehog:latest \
           git file:///src --json > trufflehog-results.json
+
       - name: Check for Secrets
         run: |
           if grep -q '"reason":' trufflehog-results.json; then
