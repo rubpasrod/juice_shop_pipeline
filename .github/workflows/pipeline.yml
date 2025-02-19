@@ -16,13 +16,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Docker Image
+      - name: Restore Cached Docker Image
+        id: cache-docker
         uses: actions/cache@v3
         with:
           path: /tmp/juice-shop-image
-          key: juice-shop-image-${{ github.sha }}
+          key: juice-shop-image-${{ runner.os }}-${{ hashFiles('Dockerfile', 'package-lock.json') }}
+          restore-keys: |
+            juice-shop-image-${{ runner.os }}-
+
+      - name: Load Cached Image (if available)
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        run: docker load < /tmp/juice-shop-image/juice-shop.tar
 
       - name: Build Image
+        if: steps.cache-docker.outputs.cache-hit != 'true'
         run: |
           docker build -t juice-shop .
           mkdir -p /tmp/juice-shop-image
@@ -46,7 +54,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/juice-shop-image
-          key: juice-shop-image-${{ github.sha }}
+          key: juice-shop-image-${{ runner.os }}-${{ hashFiles('Dockerfile', 'package-lock.json') }}
 
       - name: Load Docker Image
         run: docker load < /tmp/juice-shop-image/juice-shop.tar
