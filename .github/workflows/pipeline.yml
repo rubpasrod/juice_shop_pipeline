@@ -111,6 +111,9 @@ jobs:
       - name: 📦 Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: 🔧 Create missing file
+        run: mkdir -p .well-known/csaf && touch .well-known/csaf/provider-metadata.json
+
       - name: 🔧 Start Juice Shop
         run: |
           nohup npm start &
