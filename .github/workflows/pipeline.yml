@@ -62,16 +62,16 @@ jobs:
             exit 1
           fi
 
-  sca:
-    name: SCA Stage (OWASP Dependency-Check)
+  security_sca:
+    name: SCA (OWASP Dependency-Check)
     runs-on: ubuntu-24.04
     needs: test
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Node.js dependencies
-        run: npm install --package-lock
+      - name: Create Report Directory for SCA
+        run: mkdir -p ./dependency-check-report
 
       - name: Cache Dependency-Check database
         uses: actions/cache@v3
@@ -79,24 +79,26 @@ jobs:
           path: /tmp/dependency-check-cache
           key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
 
-      - name: Run OWASP Dependency-Check
+      - name: Run OWASP Dependency-Check (SCA)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          mkdir -p ./dependency-check-report
-          docker run --rm \
-            -v $(pwd):/src \
-            -v /tmp/dependency-check-cache:/root/.m2/repository \
-            owasp/dependency-check:latest \
-            --project "Juice Shop" \
-            --scan /src \
-            --out /src/dependency-check-report \
-            --exclude /src/test/files/passwordProtected.zip \
-            --exclude /src/test/files/arbitraryFileWrite.zip
+          docker run --rm -v $(pwd):/src \
+          -v /tmp/dependency-check-cache:/root/.m2/repository \
+          -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
+          owasp/dependency-check:latest \
+          --project "Juice Shop" \
+          --scan /src \
+          --format "ALL" \
+          --out /src/dependency-check-report \
+          --nvdApiKey "${{ secrets.NVD_API_KEY }}"
 
-      - name: Upload Dependency-Check report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: ./dependency-check-report
+      - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
+        run: |
+          if grep -q '"severity": "CRITICAL"' dependency-check-report/dependency-check-report.json; then
+            echo "Critical vulnerabilities found by OWASP Dependency-Check!"
+            exit 1
+          fi
 
   security_dast:
     name: DAST (OWASP ZAP)
