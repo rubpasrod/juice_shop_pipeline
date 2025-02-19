@@ -67,23 +67,18 @@ jobs:
     runs-on: ubuntu-24.04
     needs: test
     steps:
-      # Paso 1: Checkout del código fuente
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Paso 2: Instalar dependencias de Node.js (si es necesario)
       - name: Install Node.js dependencies
-        run: |
-          npm install --package-lock
+        run: npm install --package-lock
 
-      # Paso 3: Cache de la base de datos de OWASP Dependency-Check
       - name: Cache Dependency-Check database
         uses: actions/cache@v3
         with:
           path: /tmp/dependency-check-cache
           key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
 
-      # Paso 4: Ejecutar OWASP Dependency-Check
       - name: Run OWASP Dependency-Check
         run: |
           mkdir -p ./dependency-check-report
@@ -97,13 +92,11 @@ jobs:
             --exclude /src/test/files/passwordProtected.zip \
             --exclude /src/test/files/arbitraryFileWrite.zip
 
-      # Paso 5: (Opcional) Subir el reporte generado a algún lugar, si es necesario
       - name: Upload Dependency-Check report
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
           path: ./dependency-check-report
-
 
   security_dast:
     name: DAST (OWASP ZAP)
@@ -119,7 +112,11 @@ jobs:
       - name: 🔧 Start Juice Shop
         run: |
           nohup npm start &
-          sleep 20
+          sleep 60  # Esperar más tiempo para asegurar que la app está activa
+
+      - name: 🔍 Check if Juice Shop is running
+        run: |
+          curl --retry 5 --retry-delay 10 --retry-connrefused -I http://localhost:3000
 
       - name: Run OWASP ZAP Scan (DAST)
         run: |
