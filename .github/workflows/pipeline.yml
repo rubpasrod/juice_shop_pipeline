@@ -95,6 +95,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Ensure Dependencies Are Installed
+        run: |
+          if [ ! -f package-lock.json ]; then
+            echo "package-lock.json missing! Running npm install..."
+            npm install --legacy-peer-deps
+          fi
+
       - name: Create Report Directory for SCA
         run: mkdir -p ./dependency-check-report
 
@@ -102,7 +109,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: /tmp/dependency-check-cache
-          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('**/*.js') }}
+          key: dependency-check-db-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Debug Dependency-Check Cache
         run: ls -lah /tmp/dependency-check-cache || echo "Cache directory not found"
@@ -111,7 +118,7 @@ jobs:
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          docker run --rm -v $(pwd):/src \
+          docker run --rm --user root -v $(pwd):/src \
           -v /tmp/dependency-check-cache:/root/.m2/repository \
           -e NVD_API_KEY=${{ secrets.NVD_API_KEY }} \
           owasp/dependency-check:latest \
@@ -119,6 +126,7 @@ jobs:
           --scan /src \
           --format "ALL" \
           --out /src/dependency-check-report \
+          --disableArchive \
           --nvdApiKey "${{ secrets.NVD_API_KEY }}"
 
       - name: Check for Critical Vulnerabilities (OWASP Dependency-Check)
