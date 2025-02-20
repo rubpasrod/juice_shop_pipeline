@@ -199,3 +199,27 @@ jobs:
             echo "Critical vulnerabilities found by Semgrep!"
             exit 1
           fi
+
+  security_gate:
+    name: 🔒 Security Gate
+    runs-on: ubuntu-24.04
+    needs: [security_sca, security_dast, security_sast, security_secrets]
+    if: always()  # Se ejecuta siempre, incluso si un job anterior falla
+    steps:
+      - name: ✅ Check Previous Jobs Status
+        run: |
+          FAILED_JOBS=()
+
+          for job in security_sca security_dast security_sast security_secrets; do
+            STATUS="${{ needs[job].result }}"
+            if [[ "$STATUS" == "failure" ]]; then
+              FAILED_JOBS+=("$job")
+            fi
+          done
+
+          if [ ${#FAILED_JOBS[@]} -ne 0 ]; then
+            echo "❌ Security checks failed in: ${FAILED_JOBS[*]}"
+            exit 1
+          fi
+
+          echo "✅ All security checks passed!"
