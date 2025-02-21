@@ -135,6 +135,12 @@ jobs:
             echo "Critical vulnerabilities found by OWASP Dependency-Check!"
             exit 1
           fi
+      - name: Upload SCA Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: src/dependency-check-report/
+
 
   security_dast:
     name: DAST (OWASP ZAP)
@@ -152,8 +158,8 @@ jobs:
 
       - name: 🔧 Start Juice Shop
         run: |
-          nohup npm start & 
-          sleep 60  # Esperar más tiempo para asegurar que la app está activa
+          nohup npm start &
+          sleep 60
       - name: 🔍 Check if Juice Shop is running
         run: |
           curl --retry 5 --retry-delay 10 --retry-connrefused -I http://localhost:3000
@@ -163,6 +169,12 @@ jobs:
           docker pull zaproxy/zap-weekly
           docker run --rm -v $(pwd):/zap/wrk/:rw --user root --network="host" -t zaproxy/zap-weekly \
           zap-baseline.py -t http://localhost:3000 -g /zap/wrk/gen.conf -r zap-report.html -I
+      - name: Upload DAST Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report.html
+
   security_secrets:
     name: Secrets Scan (TruffleHog)
     runs-on: ubuntu-24.04
@@ -181,6 +193,11 @@ jobs:
             echo "Secrets found by TruffleHog!"
             exit 1
           fi
+      - name: Upload Secrets Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trufflehog-results
+          path: trufflehog-results.json
 
   security_sast:
     name: SAST (Semgrep)
@@ -199,12 +216,17 @@ jobs:
             echo "Critical vulnerabilities found by Semgrep!"
             exit 1
           fi
+      - name: Upload SAST Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: semgrep-results.json
 
   security_gate:
     name: 🔒 Security Gate
     runs-on: ubuntu-24.04
     needs: [security_sca, security_dast, security_sast, security_secrets]
-    if: always()  # Se ejecuta siempre, incluso si un job anterior falla
+    if: always()
     steps:
       - name: ✅ Check Previous Jobs Status
         run: |
